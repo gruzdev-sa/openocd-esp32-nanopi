@@ -98,22 +98,22 @@ uint32_t allwinner_h3_peri_base = 0x01c20800;
 static int dev_mem_fd;
 static volatile uint32_t *pio_base;
 
-static bb_value_t bcm2835gpio_read(void);
-static int bcm2835gpio_write(int tck, int tms, int tdi);
+static bb_value_t allwinner_h3gpio_read(void);
+static int allwinner_h3gpio_write(int tck, int tms, int tdi);
 
-static int bcm2835_swdio_read(void);
-static void bcm2835_swdio_drive(bool is_output);
-static int bcm2835gpio_swd_write(int swclk, int swdio);
+static int allwinner_h3_swdio_read(void);
+static void allwinner_h3_swdio_drive(bool is_output);
+static int allwinner_h3gpio_swd_write(int swclk, int swdio);
 
-static int bcm2835gpio_init(void);
-static int bcm2835gpio_quit(void);
+static int allwinner_h3gpio_init(void);
+static int allwinner_h3gpio_quit(void);
 
-static struct bitbang_interface bcm2835gpio_bitbang = {
-	.read = bcm2835gpio_read,
-	.write = bcm2835gpio_write,
-	.swdio_read = bcm2835_swdio_read,
-	.swdio_drive = bcm2835_swdio_drive,
-	.swd_write = bcm2835gpio_swd_write,
+static struct bitbang_interface allwinner_h3gpio_bitbang = {
+	.read = allwinner_h3gpio_read,
+	.write = allwinner_h3gpio_write,
+	.swdio_read = allwinner_h3_swdio_read,
+	.swdio_drive = allwinner_h3_swdio_drive,
+	.swd_write = allwinner_h3gpio_swd_write,
 	.blink = NULL
 };
 
@@ -142,12 +142,12 @@ static int speed_coeff = 113714;
 static int speed_offset = 28;
 static unsigned int jtag_delay;
 
-static bb_value_t bcm2835gpio_read(void)
+static bb_value_t allwinner_h3gpio_read(void)
 {
 	return (GPIO_LEV & 1<<tdo_gpio) ? BB_HIGH : BB_LOW;
 }
 
-static int bcm2835gpio_write(int tck, int tms, int tdi)
+static int allwinner_h3gpio_write(int tck, int tms, int tdi)
 {
 	uint32_t set = tck<<tck_gpio | tms<<tms_gpio | tdi<<tdi_gpio;
 	uint32_t clear = !tck<<tck_gpio | !tms<<tms_gpio | !tdi<<tdi_gpio;
@@ -161,7 +161,7 @@ static int bcm2835gpio_write(int tck, int tms, int tdi)
 	return ERROR_OK;
 }
 
-static int bcm2835gpio_swd_write(int swclk, int swdio)
+static int allwinner_h3gpio_swd_write(int swclk, int swdio)
 {
 	uint32_t set = swclk << swclk_gpio | swdio << swdio_gpio;
 	uint32_t clear = !swclk << swclk_gpio | !swdio << swdio_gpio;
@@ -176,7 +176,7 @@ static int bcm2835gpio_swd_write(int swclk, int swdio)
 }
 
 /* (1) assert or (0) deassert reset lines */
-static int bcm2835gpio_reset(int trst, int srst)
+static int allwinner_h3gpio_reset(int trst, int srst)
 {
 	uint32_t set = 0;
 	uint32_t clear = 0;
@@ -197,7 +197,7 @@ static int bcm2835gpio_reset(int trst, int srst)
 	return ERROR_OK;
 }
 
-static void bcm2835_swdio_drive(bool is_output)
+static void allwinner_h3_swdio_drive(bool is_output)
 {
 	if (swdio_dir_gpio > 0) {
 		if (is_output) {
@@ -215,12 +215,12 @@ static void bcm2835_swdio_drive(bool is_output)
 	}
 }
 
-static int bcm2835_swdio_read(void)
+static int allwinner_h3_swdio_read(void)
 {
 	return !!(GPIO_LEV & 1 << swdio_gpio);
 }
 
-static int bcm2835gpio_khz(int khz, int *jtag_speed)
+static int allwinner_h3gpio_khz(int khz, int *jtag_speed)
 {
 	if (!khz) {
 		LOG_DEBUG("RCLK not supported");
@@ -232,13 +232,13 @@ static int bcm2835gpio_khz(int khz, int *jtag_speed)
 	return ERROR_OK;
 }
 
-static int bcm2835gpio_speed_div(int speed, int *khz)
+static int allwinner_h3gpio_speed_div(int speed, int *khz)
 {
 	*khz = speed_coeff/(speed + speed_offset);
 	return ERROR_OK;
 }
 
-static int bcm2835gpio_speed(int speed)
+static int allwinner_h3gpio_speed(int speed)
 {
 	jtag_delay = speed;
 	return ERROR_OK;
@@ -249,7 +249,7 @@ static int is_gpio_valid(int gpio)
 	return gpio >= 0 && gpio <= 31;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionums)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionums)
 {
 	if (CMD_ARGC == 4) {
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], tck_gpio);
@@ -261,67 +261,67 @@ COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionums)
 	}
 
 	command_print(CMD,
-			"BCM2835 GPIO config: tck = %d, tms = %d, tdi = %d, tdo = %d",
+			"allwinner_h3 GPIO config: tck = %d, tms = %d, tdi = %d, tdo = %d",
 			tck_gpio, tms_gpio, tdi_gpio, tdo_gpio);
 
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_tck)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_tck)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], tck_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: tck = %d", tck_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: tck = %d", tck_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_tms)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_tms)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], tms_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: tms = %d", tms_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: tms = %d", tms_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_tdo)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_tdo)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], tdo_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: tdo = %d", tdo_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: tdo = %d", tdo_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_tdi)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_tdi)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], tdi_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: tdi = %d", tdi_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: tdi = %d", tdi_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_srst)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_srst)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], srst_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: srst = %d", srst_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: srst = %d", srst_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_jtag_gpionum_trst)
+COMMAND_HANDLER(allwinner_h3gpio_handle_jtag_gpionum_trst)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], trst_gpio);
 
-	command_print(CMD, "BCM2835 GPIO config: trst = %d", trst_gpio);
+	command_print(CMD, "allwinner_h3 GPIO config: trst = %d", trst_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_swd_gpionums)
+COMMAND_HANDLER(allwinner_h3gpio_handle_swd_gpionums)
 {
 	if (CMD_ARGC == 2) {
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], swclk_gpio);
@@ -331,149 +331,149 @@ COMMAND_HANDLER(bcm2835gpio_handle_swd_gpionums)
 	}
 
 	command_print(CMD,
-			"BCM2835 GPIO nums: swclk = %d, swdio = %d",
+			"allwinner_h3 GPIO nums: swclk = %d, swdio = %d",
 			swclk_gpio, swdio_gpio);
 
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_swd_gpionum_swclk)
+COMMAND_HANDLER(allwinner_h3gpio_handle_swd_gpionum_swclk)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], swclk_gpio);
 
-	command_print(CMD, "BCM2835 num: swclk = %d", swclk_gpio);
+	command_print(CMD, "allwinner_h3 num: swclk = %d", swclk_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_swd_gpionum_swdio)
+COMMAND_HANDLER(allwinner_h3gpio_handle_swd_gpionum_swdio)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], swdio_gpio);
 
-	command_print(CMD, "BCM2835 num: swdio = %d", swdio_gpio);
+	command_print(CMD, "allwinner_h3 num: swdio = %d", swdio_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_swd_dir_gpionum_swdio)
+COMMAND_HANDLER(allwinner_h3gpio_handle_swd_dir_gpionum_swdio)
 {
 	if (CMD_ARGC == 1)
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], swdio_dir_gpio);
 
-	command_print(CMD, "BCM2835 num: swdio_dir = %d", swdio_dir_gpio);
+	command_print(CMD, "allwinner_h3 num: swdio_dir = %d", swdio_dir_gpio);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_speed_coeffs)
+COMMAND_HANDLER(allwinner_h3gpio_handle_speed_coeffs)
 {
 	if (CMD_ARGC == 2) {
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[0], speed_coeff);
 		COMMAND_PARSE_NUMBER(int, CMD_ARGV[1], speed_offset);
 	}
 
-	command_print(CMD, "BCM2835 GPIO: speed_coeffs = %d, speed_offset = %d",
+	command_print(CMD, "allwinner_h3 GPIO: speed_coeffs = %d, speed_offset = %d",
 				  speed_coeff, speed_offset);
 	return ERROR_OK;
 }
 
-COMMAND_HANDLER(bcm2835gpio_handle_peripheral_base)
+COMMAND_HANDLER(allwinner_h3gpio_handle_peripheral_base)
 {
 	if (CMD_ARGC == 1)
-		COMMAND_PARSE_NUMBER(u32, CMD_ARGV[0], bcm2835_peri_base);
+		COMMAND_PARSE_NUMBER(u32, CMD_ARGV[0], allwinner_h3_peri_base);
 
-	command_print(CMD, "BCM2835 GPIO: peripheral_base = 0x%08x",
-				  bcm2835_peri_base);
+	command_print(CMD, "allwinner_h3 GPIO: peripheral_base = 0x%08x",
+				  allwinner_h3_peri_base);
 	return ERROR_OK;
 }
 
-static const struct command_registration bcm2835gpio_subcommand_handlers[] = {
+static const struct command_registration allwinner_h3gpio_subcommand_handlers[] = {
 	{
 		.name = "jtag_nums",
-		.handler = &bcm2835gpio_handle_jtag_gpionums,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionums,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio numbers for tck, tms, tdi, tdo. (in that order)",
 		.usage = "[tck tms tdi tdo]",
 	},
 	{
 		.name = "tck_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_tck,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_tck,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for tck.",
 		.usage = "[tck]",
 	},
 	{
 		.name = "tms_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_tms,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_tms,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for tms.",
 		.usage = "[tms]",
 	},
 	{
 		.name = "tdo_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_tdo,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_tdo,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for tdo.",
 		.usage = "[tdo]",
 	},
 	{
 		.name = "tdi_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_tdi,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_tdi,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for tdi.",
 		.usage = "[tdi]",
 	},
 	{
 		.name = "swd_nums",
-		.handler = &bcm2835gpio_handle_swd_gpionums,
+		.handler = &allwinner_h3gpio_handle_swd_gpionums,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio numbers for swclk, swdio. (in that order)",
 		.usage = "[swclk swdio]",
 	},
 	{
 		.name = "swclk_num",
-		.handler = &bcm2835gpio_handle_swd_gpionum_swclk,
+		.handler = &allwinner_h3gpio_handle_swd_gpionum_swclk,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for swclk.",
 		.usage = "[swclk]",
 	},
 	{
 		.name = "swdio_num",
-		.handler = &bcm2835gpio_handle_swd_gpionum_swdio,
+		.handler = &allwinner_h3gpio_handle_swd_gpionum_swdio,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for swdio.",
 		.usage = "[swdio]",
 	},
 	{
 		.name = "swdio_dir_num",
-		.handler = &bcm2835gpio_handle_swd_dir_gpionum_swdio,
+		.handler = &allwinner_h3gpio_handle_swd_dir_gpionum_swdio,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for swdio direction control pin (set=output mode, clear=input mode)",
 		.usage = "[swdio_dir]",
 	},
 	{
 		.name = "srst_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_srst,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_srst,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for srst.",
 		.usage = "[srst]",
 	},
 	{
 		.name = "trst_num",
-		.handler = &bcm2835gpio_handle_jtag_gpionum_trst,
+		.handler = &allwinner_h3gpio_handle_jtag_gpionum_trst,
 		.mode = COMMAND_CONFIG,
 		.help = "gpio number for trst.",
 		.usage = "[trst]",
 	},
 	{
 		.name = "speed_coeffs",
-		.handler = &bcm2835gpio_handle_speed_coeffs,
+		.handler = &allwinner_h3gpio_handle_speed_coeffs,
 		.mode = COMMAND_CONFIG,
 		.help = "SPEED_COEFF and SPEED_OFFSET for delay calculations.",
 		.usage = "[SPEED_COEFF SPEED_OFFSET]",
 	},
 	{
 		.name = "peripheral_base",
-		.handler = &bcm2835gpio_handle_peripheral_base,
+		.handler = &allwinner_h3gpio_handle_peripheral_base,
 		.mode = COMMAND_CONFIG,
 		.help = "peripheral base to access GPIOs (RPi1 0x20000000, RPi2 0x3F000000).",
 		.usage = "[base]",
@@ -482,41 +482,41 @@ static const struct command_registration bcm2835gpio_subcommand_handlers[] = {
 	COMMAND_REGISTRATION_DONE
 };
 
-static const struct command_registration bcm2835gpio_command_handlers[] = {
+static const struct command_registration allwinner_h3gpio_command_handlers[] = {
 	{
-		.name = "bcm2835gpio",
+		.name = "allwinner_h3gpio",
 		.mode = COMMAND_ANY,
-		.help = "perform bcm2835gpio management",
-		.chain = bcm2835gpio_subcommand_handlers,
+		.help = "perform allwinner_h3gpio management",
+		.chain = allwinner_h3gpio_subcommand_handlers,
 		.usage = "",
 	},
 	COMMAND_REGISTRATION_DONE
 };
 
-static const char * const bcm2835_transports[] = { "jtag", "swd", NULL };
+static const char * const allwinner_h3_transports[] = { "jtag", "swd", NULL };
 
-static struct jtag_interface bcm2835gpio_interface = {
+static struct jtag_interface allwinner_h3gpio_interface = {
 	.supported = DEBUG_CAP_TMS_SEQ,
 	.execute_queue = bitbang_execute_queue,
 };
 
-struct adapter_driver bcm2835gpio_adapter_driver = {
-	.name = "bcm2835gpio",
-	.transports = bcm2835_transports,
-	.commands = bcm2835gpio_command_handlers,
+struct adapter_driver allwinner_h3gpio_adapter_driver = {
+	.name = "allwinner_h3gpio",
+	.transports = allwinner_h3_transports,
+	.commands = allwinner_h3gpio_command_handlers,
 
-	.init = bcm2835gpio_init,
-	.quit = bcm2835gpio_quit,
-	.reset = bcm2835gpio_reset,
-	.speed = bcm2835gpio_speed,
-	.khz = bcm2835gpio_khz,
-	.speed_div = bcm2835gpio_speed_div,
+	.init = allwinner_h3gpio_init,
+	.quit = allwinner_h3gpio_quit,
+	.reset = allwinner_h3gpio_reset,
+	.speed = allwinner_h3gpio_speed,
+	.khz = allwinner_h3gpio_khz,
+	.speed_div = allwinner_h3gpio_speed_div,
 
-	.jtag_ops = &bcm2835gpio_interface,
+	.jtag_ops = &allwinner_h3gpio_interface,
 	.swd_ops = &bitbang_swd,
 };
 
-static bool bcm2835gpio_jtag_mode_possible(void)
+static bool allwinner_h3gpio_jtag_mode_possible(void)
 {
 	if (!is_gpio_valid(tck_gpio))
 		return 0;
@@ -529,7 +529,7 @@ static bool bcm2835gpio_jtag_mode_possible(void)
 	return 1;
 }
 
-static bool bcm2835gpio_swd_mode_possible(void)
+static bool allwinner_h3gpio_swd_mode_possible(void)
 {
 	if (!is_gpio_valid(swclk_gpio))
 		return 0;
@@ -538,18 +538,18 @@ static bool bcm2835gpio_swd_mode_possible(void)
 	return 1;
 }
 
-static int bcm2835gpio_init(void)
+static int allwinner_h3gpio_init(void)
 {
-	bitbang_interface = &bcm2835gpio_bitbang;
+	bitbang_interface = &allwinner_h3gpio_bitbang;
 
-	LOG_INFO("BCM2835 GPIO JTAG/SWD bitbang driver");
+	LOG_INFO("allwinner_h3 GPIO JTAG/SWD bitbang driver");
 
-	if (transport_is_jtag() && !bcm2835gpio_jtag_mode_possible()) {
+	if (transport_is_jtag() && !allwinner_h3gpio_jtag_mode_possible()) {
 		LOG_ERROR("Require tck, tms, tdi and tdo gpios for JTAG mode");
 		return ERROR_JTAG_INIT_FAILED;
 	}
 
-	if (transport_is_swd() && !bcm2835gpio_swd_mode_possible()) {
+	if (transport_is_swd() && !allwinner_h3gpio_swd_mode_possible()) {
 		LOG_ERROR("Require swclk and swdio gpio for SWD mode");
 		return ERROR_JTAG_INIT_FAILED;
 	}
@@ -565,7 +565,7 @@ static int bcm2835gpio_init(void)
 	}
 
 	pio_base = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
-				MAP_SHARED, dev_mem_fd, BCM2835_GPIO_BASE);
+				MAP_SHARED, dev_mem_fd, allwinner_h3_GPIO_BASE);
 
 	if (pio_base == MAP_FAILED) {
 		LOG_ERROR("mmap: %s", strerror(errno));
@@ -579,7 +579,7 @@ static int bcm2835gpio_init(void)
 	 */
 	static volatile uint32_t *pads_base;
 	pads_base = mmap(NULL, sysconf(_SC_PAGE_SIZE), PROT_READ | PROT_WRITE,
-				MAP_SHARED, dev_mem_fd, BCM2835_PADS_GPIO_0_27);
+				MAP_SHARED, dev_mem_fd, allwinner_h3_PADS_GPIO_0_27);
 
 	if (pads_base == MAP_FAILED) {
 		LOG_ERROR("mmap: %s", strerror(errno));
@@ -588,7 +588,7 @@ static int bcm2835gpio_init(void)
 	}
 
 	/* set 4mA drive strength, slew rate limited, hysteresis on */
-	pads_base[BCM2835_PADS_GPIO_0_27_OFFSET] = 0x5a000008 + 1;
+	pads_base[allwinner_h3_PADS_GPIO_0_27_OFFSET] = 0x5a000008 + 1;
 	/* Выше - установка оганичения по току на GPI0 - GPI27
 	 * на 4 mA
 	 * + включается гистерезис (защита от дребезга контактов)
@@ -649,7 +649,7 @@ static int bcm2835gpio_init(void)
 	return ERROR_OK;
 }
 
-static int bcm2835gpio_quit(void)
+static int allwinner_h3gpio_quit(void)
 {
 	if (transport_is_jtag()) {
 		SET_MODE_GPIO(tdo_gpio, tdo_gpio_mode);
